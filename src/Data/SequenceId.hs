@@ -1,13 +1,17 @@
 module Data.SequenceId
-       ( checkSeqIdM
-       , checkSeqId
-       , nextSeqIdM
+       ( checkSeqId
        , nextSeqId
+
+         -- * Monadic
+       , checkSeqIdM
+       , nextSeqIdM
+       , SequenceT
+       , evalSequenceT
+
+         -- * Types
        , SequenceError (..)
        , SequenceIds (..)
        , SequenceId
-       , SequenceT
-       , evalSequenceT
        ) where
 
 
@@ -38,23 +42,35 @@ data SequenceError
     deriving (Eq, Show)
 
 
-checkSeqIdM :: Monad m => SequenceId -> (SequenceT m) (Maybe SequenceError)
+------------------------------------------------------------------------------
+-- | If the current sequence ID is greater than 1 more than the last sequence ID then the appropriate error is returned.
+checkSeqIdM :: Monad m => SequenceId -- ^ Current sequence ID
+            -> (SequenceT m) (Maybe SequenceError)
 checkSeqIdM currSeq = do
     lastSeq <- gets unLastSeqId
     put $ LastSeqId currSeq
     return $ checkSeqId lastSeq currSeq
 
 
-checkSeqId :: SequenceId -> SequenceId -> Maybe SequenceError
+------------------------------------------------------------------------------
+-- | If the difference between the sequence IDs is not 1 then the appropriate error is returned.
+checkSeqId :: SequenceId -- ^ Last sequence ID
+           -> SequenceId -- ^ Current sequence ID
+           -> Maybe SequenceError
 checkSeqId lastSeq currSeq
     | (currSeq - lastSeq) > 1 = Just . SequenceIdDropped    $ SequenceIds lastSeq currSeq
     | (currSeq - lastSeq) < 1 = Just . SequenceIdDuplicated $ SequenceIds lastSeq currSeq
     | otherwise = Nothing
 
 
-nextSeqIdM :: Monad m => SequenceT m SequenceId
+------------------------------------------------------------------------------
+-- | Update to the next sequense ID
+nextSeqIdM :: Monad m => SequenceT m SequenceId -- ^ Next sequence ID
 nextSeqIdM = modify (LastSeqId . nextSeqId . unLastSeqId) >> gets unLastSeqId
 
 
-nextSeqId :: SequenceId -> SequenceId
+------------------------------------------------------------------------------
+-- | Update to the next sequense ID
+nextSeqId :: SequenceId -- ^ Last sequence ID
+          -> SequenceId -- ^ Next sequence ID
 nextSeqId = (+1)
