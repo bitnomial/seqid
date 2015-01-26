@@ -5,50 +5,50 @@ module Data.SequenceId
          -- * Monadic
        , checkSeqIdM
        , nextSeqIdM
-       , SequenceT
-       , evalSequenceT
+       , SequenceIdT
+       , evalSequenceIdT
 
          -- * Types
-       , SequenceError (..)
-       , SequenceIds (..)
+       , SequenceIdError (..)
+       , SequenceIdErrorType (..)
        , SequenceId
        ) where
 
 
-import           Control.Monad.Trans.State (StateT, evalStateT, gets, modify,
+import           Control.Monad.Trans.State (StateT, evalStateT, get, modify',
                                             put)
 import           Data.Word                 (Word32)
 
 
-newtype LastSeqId = LastSeqId { unLastSeqId :: SequenceId } deriving Show
-type SequenceT = StateT LastSeqId
-type SequenceId = Word32
+type SequenceIdT  = StateT SequenceId
+type SequenceId   = Word32
 
 
-evalSequenceT :: Monad m => SequenceId -> StateT LastSeqId m b -> m b
-evalSequenceT = flip evalStateT . LastSeqId
+evalSequenceIdT :: Monad m => SequenceId -> SequenceIdT m b -> m b
+evalSequenceIdT = flip evalStateT
 
 
-data SequenceIds =
-    SequenceIds
-    { lastSeqId :: SequenceId
-    , currSeqId :: SequenceId
+data SequenceIdError =
+    SequenceIdError
+    { errType   :: !SequenceIdErrorType
+    , lastSeqId :: !SequenceId
+    , currSeqId :: !SequenceId
     } deriving (Eq, Show)
 
 
-data SequenceError
-    = SequenceIdDropped SequenceIds
-    | SequenceIdDuplicated SequenceIds
+data SequenceIdErrorType
+    = SequenceIdDropped
+    | SequenceIdDuplicated
     deriving (Eq, Show)
 
 
 ------------------------------------------------------------------------------
 -- | If the current sequence ID is greater than 1 more than the last sequence ID then the appropriate error is returned.
 checkSeqIdM :: Monad m => SequenceId -- ^ Current sequence ID
-            -> (SequenceT m) (Maybe SequenceError)
+            -> (SequenceIdT m) (Maybe SequenceIdError)
 checkSeqIdM currSeq = do
-    lastSeq <- gets unLastSeqId
-    put $ LastSeqId currSeq
+    lastSeq <- get
+    put $ max lastSeq currSeq
     return $ checkSeqId lastSeq currSeq
 
 
@@ -56,17 +56,21 @@ checkSeqIdM currSeq = do
 -- | If the difference between the sequence IDs is not 1 then the appropriate error is returned.
 checkSeqId :: SequenceId -- ^ Last sequence ID
            -> SequenceId -- ^ Current sequence ID
-           -> Maybe SequenceError
+           -> Maybe SequenceIdError
 checkSeqId lastSeq currSeq
-    | (currSeq - lastSeq) > 1 = Just . SequenceIdDropped    $ SequenceIds lastSeq currSeq
-    | (currSeq - lastSeq) < 1 = Just . SequenceIdDuplicated $ SequenceIds lastSeq currSeq
-    | otherwise = Nothing
+    | delta lastSeq currSeq > 1 = Just $ SequenceIdError SequenceIdDropped    lastSeq currSeq
+    | delta lastSeq currSeq < 1 = Just $ SequenceIdError SequenceIdDuplicated lastSeq currSeq
+    | otherwise                 = Nothing
+
+
+delta :: SequenceId -> SequenceId -> Integer
+delta lastSeq currSeq = toInteger currSeq - toInteger lastSeq
 
 
 ------------------------------------------------------------------------------
 -- | Update to the next sequense ID
-nextSeqIdM :: Monad m => SequenceT m SequenceId -- ^ Next sequence ID
-nextSeqIdM = modify (LastSeqId . nextSeqId . unLastSeqId) >> gets unLastSeqId
+nextSeqIdM :: Monad m => SequenceIdT m SequenceId -- ^ Next sequence ID
+nextSeqIdM = modify' nextSeqId >> get
 
 
 ------------------------------------------------------------------------------
