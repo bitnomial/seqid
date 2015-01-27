@@ -1,10 +1,11 @@
 module Data.SequenceId
        ( checkSeqId
-       , nextSeqId
+       , incrementSeqId
 
          -- * Monadic
        , checkSeqIdM
-       , nextSeqIdM
+       , incrementSeqIdM
+       , lastSeqIdM
        , SequenceIdT
        , evalSequenceIdT
 
@@ -24,8 +25,8 @@ type SequenceIdT  = StateT SequenceId
 type SequenceId   = Word32
 
 
-evalSequenceIdT :: Monad m => SequenceId -> SequenceIdT m b -> m b
-evalSequenceIdT = flip evalStateT
+evalSequenceIdT :: Monad m => SequenceIdT m b -> SequenceId -> m b
+evalSequenceIdT = evalStateT
 
 
 data SequenceIdError =
@@ -69,12 +70,18 @@ delta lastSeq currSeq = toInteger currSeq - toInteger lastSeq
 
 ------------------------------------------------------------------------------
 -- | Update to the next sequense ID
-nextSeqIdM :: Monad m => SequenceIdT m SequenceId -- ^ Next sequence ID
-nextSeqIdM = modify' nextSeqId >> get
+incrementSeqIdM :: Monad m => SequenceIdT m SequenceId -- ^ Next sequence ID
+incrementSeqIdM = modify' incrementSeqId >> get
 
 
 ------------------------------------------------------------------------------
--- | Update to the next sequense ID
-nextSeqId :: SequenceId -- ^ Last sequence ID
-          -> SequenceId -- ^ Next sequence ID
-nextSeqId = (+1)
+-- | Increment to the next sequense ID
+incrementSeqId :: SequenceId -- ^ Last sequence ID
+               -> SequenceId -- ^ Next sequence ID
+incrementSeqId = (+1)
+
+
+------------------------------------------------------------------------------
+-- | Last seen sequense ID
+lastSeqIdM :: Monad m => SequenceIdT m SequenceId -- ^ Last sequence ID
+lastSeqIdM = get
