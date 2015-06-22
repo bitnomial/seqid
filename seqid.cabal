@@ -1,5 +1,5 @@
 name:                seqid
-version:             0.3.2
+version:             0.4.0
 synopsis:            Sequence ID production and consumption
 description:         Uniquely identify elements in a sequence.
 License:             BSD3
