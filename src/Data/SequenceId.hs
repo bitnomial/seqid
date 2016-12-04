@@ -31,7 +31,10 @@ newtype SequenceIdT m a = SequenceIdT { unSequenceIdT :: StateT SequenceId m a }
                         deriving (Monad, Applicative, Functor, MonadState SequenceId, MonadTrans)
 
 newtype SequenceId = SequenceId { unSequenceId :: Word32 }
-                   deriving (Show, Eq, Ord, Num, Integral, Real, Enum)
+                   deriving (Eq, Ord, Num, Integral, Real, Enum)
+
+instance Show SequenceId where
+    show (SequenceId n) = show n
 
 
 evalSequenceIdT :: Monad m => SequenceIdT m b -> SequenceId -> m b
